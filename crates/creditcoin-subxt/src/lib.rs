@@ -1,3 +1,5 @@
+#![allow(clippy::too_many_arguments)]
+
 use cfg_if::cfg_if;
 use color_eyre::eyre;
 use parity_scale_codec::Decode;

@@ -148,7 +148,7 @@ impl Execute for Command {
 
                 let mut iter = api.storage().iter(address, 512, None).await?;
                 let mut count = 0;
-                while let Some(_) = iter.next().await? {
+                while iter.next().await?.is_some() {
                     count += 1;
                 }
                 println!("{count}");
