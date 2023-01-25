@@ -1,3 +1,4 @@
+use cfg_if::cfg_if;
 use color_eyre::eyre;
 use parity_scale_codec::Decode;
 pub use subxt;
@@ -13,8 +14,15 @@ use tap::Pipe;
 
 use sp_core::sr25519;
 
-#[subxt::subxt(runtime_metadata_path = "./creditcoin-metadata.scale")]
-pub mod creditcoin {}
+cfg_if! {
+    if #[cfg(feature = "old-substrate")] {
+        #[subxt::subxt(runtime_metadata_path = "./old-creditcoin-metadata.scale")]
+        pub mod creditcoin {}
+    } else {
+        #[subxt::subxt(runtime_metadata_path = "./creditcoin-metadata.scale")]
+        pub mod creditcoin {}
+    }
+}
 
 pub type ExtrinsicParams = BaseExtrinsicParams<SubstrateConfig, PlainTip>;
 
