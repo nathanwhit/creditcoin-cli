@@ -15,3 +15,8 @@ serde_json = "1.0.89"
 tap = "1.0.1"
 creditcoin-subxt = { path = "../creditcoin-subxt" }
 async-trait = "0.1.59"
+cfg-if = "1.0.0"
+
+[features]
+default = []
+old-substrate = ["creditcoin-subxt/old-substrate"]

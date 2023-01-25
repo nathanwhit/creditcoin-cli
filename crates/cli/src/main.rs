@@ -1,16 +1,29 @@
 use async_trait::async_trait;
+use cfg_if::cfg_if;
 use clap::Parser;
 use color_eyre::{eyre::eyre, Report};
-use creditcoin::runtime_types::creditcoin_node_runtime::Call as RuntimeCall;
+
 use creditcoin_subxt::{
-    creditcoin,
+    creditcoin::{self},
     subxt::{self},
     AccountId, Address, ApiClient, PairSigner,
 };
 use std::{fmt, path::PathBuf, str::FromStr};
 use subxt::ext::sp_core;
+use subxt::ext::sp_runtime::traits::One;
 
 use sp_core::{crypto::Ss58Codec, sr25519, Pair};
+
+// imports that vary based on the version of substrate
+cfg_if! {
+    if #[cfg(feature = "old-substrate")] {
+        use creditcoin::runtime_types::creditcoin_node_runtime::Call as RuntimeCall;
+        type Weight = u64;
+    } else {
+        use creditcoin::runtime_types::creditcoin_node_runtime::RuntimeCall;
+        use creditcoin::runtime_types::sp_weights::weight_v2::Weight;
+    }
+}
 
 #[derive(Clone)]
 struct CreditcoinAccountId(AccountId);
@@ -244,9 +257,12 @@ impl Execute for Extrinsic {
 
                 let code = tokio::fs::read(&wasm_path).await?;
 
-                let tx = creditcoin::tx()
-                    .sudo()
-                    .sudo_unchecked_weight(RuntimeCall::System(SystemCall::set_code { code }), 1);
+                let weight = Weight::one();
+
+                let tx = creditcoin::tx().sudo().sudo_unchecked_weight(
+                    RuntimeCall::System(SystemCall::set_code { code }),
+                    weight,
+                );
 
                 println!("Waiting for transaction to be included in a block...");
                 creditcoin_subxt::send_extrinsic(tx, api, sudo).await

@@ -382,6 +382,7 @@ name = "creditcoin-cli"
 version = "0.1.0"
 dependencies = [
  "async-trait",
+ "cfg-if",
  "clap",
  "color-eyre",
  "creditcoin-subxt",

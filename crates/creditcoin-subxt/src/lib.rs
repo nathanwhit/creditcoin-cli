@@ -95,3 +95,28 @@ pub async fn send_extrinsic<T: TxPayload>(
 
     Ok(())
 }
+
+#[cfg(not(feature = "old-substrate"))]
+mod weight_impls {
+    use crate::creditcoin;
+    use subxt::ext::sp_runtime::traits::One;
+
+    impl One for creditcoin::runtime_types::sp_weights::weight_v2::Weight {
+        fn one() -> Self {
+            Self {
+                ref_time: 1,
+                proof_size: 1,
+            }
+        }
+    }
+    impl std::ops::Mul for creditcoin::runtime_types::sp_weights::weight_v2::Weight {
+        type Output = Self;
+
+        fn mul(self, rhs: Self) -> Self::Output {
+            Self {
+                ref_time: self.ref_time * rhs.ref_time,
+                proof_size: self.proof_size * rhs.proof_size,
+            }
+        }
+    }
+}
