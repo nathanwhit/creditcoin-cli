@@ -63,12 +63,19 @@ struct Cli {
 
     #[clap(long, default_value = "//Alice")]
     suri: String,
+
+    #[clap(long, short, default_value = "ws://127.0.0.1:9944")]
+    endpoint: String,
 }
 
 #[derive(clap::Subcommand)]
 enum Command {
     #[clap(subcommand)]
     SendExtrinsic(Extrinsic),
+
+    GetCode {
+        output: PathBuf,
+    },
 
     GetHead {
         #[clap(long, short)]
@@ -135,6 +142,16 @@ impl Execute for Command {
                     println!("{hash:?}");
                 } else {
                     println!("Chain head: {hash:?}");
+                }
+                Ok(())
+            }
+            Command::GetCode { output } => {
+                let code = api.rpc().storage(b":code", None).await?;
+                if let Some(code) = code {
+                    println!("Writing code to {}", output.display());
+                    tokio::fs::write(output, code.0).await?;
+                } else {
+                    println!("No code found");
                 }
                 Ok(())
             }
@@ -283,7 +300,7 @@ async fn main() -> color_eyre::Result<()> {
 
     let signer = PairSigner::new(signer);
 
-    let api = ApiClient::new().await?;
+    let api = ApiClient::from_url(&cli.endpoint).await?;
 
     cli.cmd.execute(&api, &signer, &sudo).await?;
 
