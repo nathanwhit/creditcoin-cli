@@ -17,7 +17,7 @@ install:
     command -v subxt >/dev/null 2>&1 || { echo '{{blue}}Installing subxt-cli...{{clear}}'; cargo install subxt-cli; }
 
 # fetches latest chain metadata from a locally running node
-update-metadata: install-subxt-cli
+update-metadata URL="http://localhost:9933": install-subxt-cli
     @echo '{{blue}}Fetching latest metadata from local node...{{clear}}'
-    subxt metadata -f bytes > ./crates/creditcoin-subxt/creditcoin-metadata.scale
+    subxt metadata --url {{URL}} -f bytes > ./crates/creditcoin-subxt/creditcoin-metadata.scale
     @touch ./crates/creditcoin-subxt/src/lib.rs

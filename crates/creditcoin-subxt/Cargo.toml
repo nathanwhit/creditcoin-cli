@@ -8,8 +8,9 @@ edition = "2021"
 [dependencies]
 cfg-if = "1.0.0"
 color-eyre = "0.6.2"
-parity-scale-codec = "3.2.1"
-subxt = "0.25.0"
+parity-scale-codec = "3.4.0"
+scale-decode = "0.5.0"
+subxt = "0.28.0"
 tap = "1.0.1"
 
 [features]

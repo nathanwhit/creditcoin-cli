@@ -5,11 +5,11 @@ use color_eyre::eyre;
 use parity_scale_codec::Decode;
 pub use subxt;
 use subxt::{
-    config::WithExtrinsicParams,
+    config::{extrinsic_params::BaseExtrinsicParams, polkadot::PlainTip, WithExtrinsicParams},
     events::StaticEvent,
     ext::sp_core,
     ext::sp_runtime::MultiAddress,
-    tx::{BaseExtrinsicParams, PlainTip, TxInBlock, TxPayload, TxProgress, TxStatus},
+    tx::{TxInBlock, TxPayload, TxProgress, TxStatus},
     OnlineClient, SubstrateConfig,
 };
 use tap::Pipe;
@@ -73,6 +73,16 @@ pub enum TxOutcome<E> {
 
 #[derive(Decode)]
 pub struct DontCare;
+
+impl scale_decode::DecodeAsFields for DontCare {
+    fn decode_as_fields(
+        _input: &mut &[u8],
+        _fields: &[scale_decode::PortableField],
+        _types: &scale_decode::PortableRegistry,
+    ) -> Result<Self, scale_decode::Error> {
+        Ok(DontCare)
+    }
+}
 
 impl StaticEvent for DontCare {
     const PALLET: &'static str = "NONE";

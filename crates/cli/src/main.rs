@@ -5,10 +5,11 @@ use color_eyre::{eyre::eyre, Report};
 
 use creditcoin_subxt::{
     creditcoin::{self},
-    subxt::{self},
+    subxt::{self, utils::MultiAddress},
     AccountId, Address, ApiClient, PairSigner,
 };
 use std::{fmt, path::PathBuf, str::FromStr};
+use subxt::dynamic::Value;
 use subxt::ext::sp_core;
 use subxt::ext::sp_runtime::traits::One;
 
@@ -163,7 +164,7 @@ impl Execute for Command {
             Command::CountStorageItems { module, name } => {
                 let address = creditcoin_subxt::subxt::storage::dynamic_root(module, name);
 
-                let mut iter = api.storage().iter(address, 512, None).await?;
+                let mut iter = api.storage().at_latest().await?.iter(address, 512).await?;
                 let mut count = 0;
                 while iter.next().await?.is_some() {
                     count += 1;
@@ -190,6 +191,10 @@ enum Extrinsic {
     },
     SetCode {
         wasm_path: PathBuf,
+    },
+    SwitchToPos,
+    SetSudoKey {
+        who: CreditcoinAccountId,
     },
 }
 
@@ -226,6 +231,18 @@ trait Execute {
         signer: &PairSigner<sr25519::Pair>,
         sudo: &PairSigner<sr25519::Pair>,
     ) -> color_eyre::Result<()>;
+}
+
+impl From<CreditcoinAccountId> for subxt::utils::AccountId32 {
+    fn from(value: CreditcoinAccountId) -> Self {
+        AccountId::from(value).into()
+    }
+}
+
+impl From<CreditcoinAccountId> for MultiAddress<subxt::utils::AccountId32, ()> {
+    fn from(value: CreditcoinAccountId) -> Self {
+        MultiAddress::from(subxt::utils::AccountId32::from(value))
+    }
 }
 
 #[async_trait]
@@ -276,10 +293,54 @@ impl Execute for Extrinsic {
 
                 let weight = Weight::one();
 
-                let tx = creditcoin::tx().sudo().sudo_unchecked_weight(
-                    RuntimeCall::System(SystemCall::set_code { code }),
-                    weight,
+                // let tx = creditcoin::tx().sudo().sudo_unchecked_weight(
+                //     RuntimeCall::System(SystemCall::set_code { code }),
+                //     weight,
+                // );
+
+                let inner_tx =
+                    subxt::dynamic::tx("System", "set_code", vec![Value::from_bytes(&code)]);
+                let tx = subxt::dynamic::tx(
+                    "Sudo",
+                    "sudo_unchecked_weight",
+                    vec![
+                        ("call", inner_tx.into_value()),
+                        (
+                            "weight",
+                            Value::named_composite([
+                                ("ref_time", Value::u128(1)),
+                                ("proof_size", Value::u128(1)),
+                            ]),
+                        ),
+                    ],
                 );
+
+                println!("Waiting for transaction to be included in a block...");
+                creditcoin_subxt::send_extrinsic(tx, api, sudo).await
+            }
+            Extrinsic::SwitchToPos => {
+                let inner_tx =
+                    subxt::dynamic::tx("PosSwitch", "switch_to_pos", Vec::<Value>::new());
+                let tx = subxt::dynamic::tx(
+                    "Sudo",
+                    "sudo_unchecked_weight",
+                    vec![
+                        ("call", inner_tx.into_value()),
+                        (
+                            "weight",
+                            Value::named_composite([
+                                ("ref_time", Value::u128(1)),
+                                ("proof_size", Value::u128(1)),
+                            ]),
+                        ),
+                    ],
+                );
+                println!("Waiting for transaction to be included in a block...");
+                creditcoin_subxt::send_extrinsic(tx, api, sudo).await
+                // todo!()
+            }
+            Extrinsic::SetSudoKey { who } => {
+                let tx = creditcoin::tx().sudo().set_key(who.into());
 
                 println!("Waiting for transaction to be included in a block...");
                 creditcoin_subxt::send_extrinsic(tx, api, sudo).await
