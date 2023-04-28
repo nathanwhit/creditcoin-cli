@@ -11,7 +11,6 @@ use creditcoin_subxt::{
 use std::{fmt, path::PathBuf, str::FromStr};
 use subxt::dynamic::Value;
 use subxt::ext::sp_core;
-use subxt::ext::sp_runtime::traits::One;
 
 use sp_core::{crypto::Ss58Codec, sr25519, Pair};
 
@@ -22,7 +21,6 @@ cfg_if! {
         type Weight = u64;
     } else {
         use creditcoin::runtime_types::creditcoin_node_runtime::RuntimeCall;
-        use creditcoin::runtime_types::sp_weights::weight_v2::Weight;
     }
 }
 
@@ -272,31 +270,29 @@ impl Execute for Extrinsic {
                 creditcoin_subxt::send_extrinsic(tx, api, signer).await
             }
             Extrinsic::SetBalance { account, amount } => {
-                use types::pallet_balances::pallet::Call as BalancesCall;
-
                 let Ctc(amount) = ctc_frac(amount);
 
-                let tx = creditcoin::tx().sudo().sudo(RuntimeCall::Balances(
-                    BalancesCall::set_balance {
-                        who: account.into(),
-                        new_free: amount,
-                        new_reserved: 0,
-                    },
-                ));
+                let account = AccountId::from(account);
+
+                let tx = subxt::dynamic::tx(
+                    "Balances",
+                    "set_balance",
+                    vec![
+                        (
+                            "who",
+                            Value::unnamed_variant("Id", vec![Value::from_bytes(account)]),
+                        ),
+                        ("new_free", Value::u128(amount)),
+                        ("new_reserved", Value::u128(0)),
+                    ],
+                );
+
+                let tx = subxt::dynamic::tx("Sudo", "sudo", vec![("call", tx.into_value())]);
 
                 creditcoin_subxt::send_extrinsic(tx, api, sudo).await
             }
             Extrinsic::SetCode { wasm_path } => {
-                use types::frame_system::pallet::Call as SystemCall;
-
                 let code = tokio::fs::read(&wasm_path).await?;
-
-                let weight = Weight::one();
-
-                // let tx = creditcoin::tx().sudo().sudo_unchecked_weight(
-                //     RuntimeCall::System(SystemCall::set_code { code }),
-                //     weight,
-                // );
 
                 let inner_tx =
                     subxt::dynamic::tx("System", "set_code", vec![Value::from_bytes(&code)]);
